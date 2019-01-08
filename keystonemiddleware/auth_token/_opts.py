@@ -67,6 +67,9 @@ _OPTS = [
                ' release.'),
     cfg.StrOpt('auth_version',
                help='API version of the admin Identity API endpoint.'),
+    cfg.StrOpt('auth_interface',
+               default='admin',
+               help='Interface of the Identity API endpoint (public/admin/internal).'),
     cfg.BoolOpt('delay_auth_decision',
                 default=False,
                 help='Do not handle authorization requests within the'
