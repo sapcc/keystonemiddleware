@@ -944,7 +944,7 @@ class AuthProtocol(BaseAuthProtocol):
             self._session,
             auth=self._auth,
             service_type='identity',
-            interface='admin',
+            interface=self._conf.get('auth_interface'),
             region_name=self._conf.get('region_name'),
             connect_retries=self._conf.get('http_request_max_retries'))
 
@@ -955,7 +955,8 @@ class AuthProtocol(BaseAuthProtocol):
             self.log,
             adap,
             include_service_catalog=self._include_service_catalog,
-            requested_auth_version=auth_version)
+            requested_auth_version=auth_version,
+            interface=self._conf.get('auth_interface'))
 
     def _create_oslo_cache(self):
         # having this as a function makes test mocking easier
