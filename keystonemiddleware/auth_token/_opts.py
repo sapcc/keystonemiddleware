@@ -67,8 +67,9 @@ _OPTS = [
                ' release.'),
     cfg.StrOpt('auth_version',
                help='API version of the admin Identity API endpoint.'),
+    # ccloud: add support for pinning a keystone interface type to be used during authentication
     cfg.StrOpt('auth_interface',
-               default='admin',
+               default='public',
                help='Interface of the Identity API endpoint (public/admin/internal).'),
     cfg.BoolOpt('delay_auth_decision',
                 default=False,

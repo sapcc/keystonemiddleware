@@ -41,7 +41,7 @@ class _RequestStrategy(object):
 
     AUTH_VERSION = None
 
-    def __init__(self, adap, include_service_catalog=None, interface='admin'):
+    def __init__(self, adap, include_service_catalog=None, interface='public'):
         self._include_service_catalog = include_service_catalog
         self._interface = interface
 
@@ -129,7 +129,7 @@ class IdentityServer(object):
     """
 
     def __init__(self, log, adap, include_service_catalog=None,
-                 requested_auth_version=None, interface='admin'):
+                 requested_auth_version=None, interface='public'):
         self._LOG = log
         self._adapter = adap
         self._include_service_catalog = include_service_catalog
