@@ -126,6 +126,12 @@ class DomainResolverFromTokenMiddleware(AuthProtocol):
                     LOG.warning(f"Domain '{domain_name}'"
                                 f" not found in Keystone")
                     return None
+                if len(domains) != 1:
+                    LOG.warning(
+                        "Not able determine domain id by name or "
+                        f"multiple domains found with name {domain_name}"
+                    )
+                    return None
                 resolved_id = domains[0].id
 
                 self._set_cached_domain_id(domain_name, resolved_id)
