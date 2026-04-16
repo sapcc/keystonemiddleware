@@ -18,6 +18,16 @@ else:
 
 LOG = logging.getLogger(logger_name)
 
+domain_resolver_opts = [
+    cfg.IntOpt(
+        "domain_resolver_cache_ttl",
+        default=3600,
+        help="TTL for domain name to ID cache in seconds",
+    ),
+]
+
+CONF.register_opts(domain_resolver_opts)
+
 
 class DomainResolverFromTokenMiddleware(AuthProtocol):
     """Middleware that resolves domain_id from domain_name using Keystone.
@@ -64,10 +74,11 @@ class DomainResolverFromTokenMiddleware(AuthProtocol):
         return None
 
     def _set_cached_domain_id(self, domain_name, domain_id):
-        """Try to store domain_id in cache."""
         if not (self._cache_region and domain_name and domain_id):
             return
-        ttl = CONF.get("domain_resolver_cache_ttl", 3600)
+
+        ttl = CONF.domain_resolver_cache_ttl
+
         try:
             self._cache_region.set(domain_name, domain_id, ttl=ttl)
         except cache_exceptions.ConfigurationError as e:
@@ -117,10 +128,16 @@ class DomainResolverFromTokenMiddleware(AuthProtocol):
                 return None
 
             try:
+                token = request.headers.get("X-Auth-Token")
+                if not token:
+                    LOG.debug("No X-Auth-Token header present")
+                    return None
                 sess = session.Session()
                 ks = ks_client.Client(
                     session=sess,
-                    endpoint=CONF.keystone_authtoken.auth_url)
+                    token=token,
+                    endpoint=CONF.keystone_authtoken.auth_url,
+                )
                 domains = ks.domains.list(name=domain_name)
                 if not domains:
                     LOG.warning(f"Domain '{domain_name}'"
@@ -145,13 +162,6 @@ class DomainResolverFromTokenMiddleware(AuthProtocol):
             except Exception as e:
                 LOG.exception(f"Unexpected error resolving domain '{domain_name}': {e}")
             return None
-        if domain_id:
-            request.environ['HTTP_X_DOMAIN_ID'] = domain_id
-            LOG.debug(f"[domain_resolver_from_token] injected"
-                      f" domain_id={domain_id} into environ")
-        else:
-            LOG.debug("[domain_resolver_from_token] no domain_id found"
-                      " in token or Keystone")
         return None
 
     @staticmethod
