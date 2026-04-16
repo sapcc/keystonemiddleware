@@ -1,10 +1,10 @@
-import logging
 from keystonemiddleware.auth_token import AuthProtocol
 from keystoneauth1 import session, exceptions as ks_exceptions
 from keystoneclient.v3 import client as ks_client
 from oslo_cache import core as cache
 from oslo_cache import exception as cache_exceptions
 from oslo_config import cfg
+from oslo_log import log as logging
 
 CONF = cfg.CONF
 project_name = getattr(CONF, "project", None) or getattr(
