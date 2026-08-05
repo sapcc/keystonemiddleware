@@ -762,6 +762,21 @@ class AuthProtocol(BaseAuthProtocol):
                     'Keystone unavailable: %s' % e)
             raise webob.exc.HTTPServiceUnavailable(
                 'The Keystone service is temporarily unavailable.')
+        except ksm_exceptions.TooManyRequests as e:
+            # The identity server rate-limited the token validation request.
+            # Propagate the rate-limit to the caller as an HTTP 429 rather than
+            # letting it become a 500. This is not deferred even when
+            # delay_auth_decision is set, because the correct behaviour is to
+            # ask the caller to back off and retry.
+            self.log.warning('Token validation rate-limited by Keystone: %s', e)
+            headers = {}
+            retry_after = getattr(e, 'retry_after', 0)
+            if retry_after:
+                headers['Retry-After'] = str(retry_after)
+            raise webob.exc.HTTPTooManyRequests(
+                'Token validation is currently rate-limited by the identity '
+                'service. Please retry later.',
+                headers=headers)
         except ksm_exceptions.InvalidToken:
             self.log.debug('Token validation failure.', exc_info=True)
             self.log.warning('Authorization failed for token')
@@ -904,3 +919,4 @@ def app_factory(global_conf, **local_conf):
 InvalidToken = ksm_exceptions.InvalidToken
 ServiceError = ksm_exceptions.ServiceError
 ConfigurationError = ksm_exceptions.ConfigurationError
+TooManyRequests = ksm_exceptions.TooManyRequests

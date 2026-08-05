@@ -24,5 +24,18 @@ class ServiceError(exceptions.KeystoneMiddlewareException):
     pass
 
 
+class TooManyRequests(exceptions.KeystoneMiddlewareException):
+    """The identity server rate-limited the token validation request.
+
+    Raised when the identity server responds with HTTP 429 while validating
+    a token. Carries the value of any ``Retry-After`` header so it can be
+    propagated back to the caller.
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.retry_after = kwargs.pop('retry_after', 0)
+        super(TooManyRequests, self).__init__(*args, **kwargs)
+
+
 class RevocationListError(exceptions.KeystoneMiddlewareException):
     pass

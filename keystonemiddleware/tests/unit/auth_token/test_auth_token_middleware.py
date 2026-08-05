@@ -90,6 +90,7 @@ VERSION_LIST_v2 = fixture.DiscoveryList(v3=False, href=BASE_URI)
 ERROR_TOKEN = '7ae290c2a06244c4b41692eb4e9225f2'
 TIMEOUT_TOKEN = '4ed1c5e53beee59458adcf8261a8cae2'
 ENDPOINT_NOT_FOUND_TOKEN = 'edf9fa62-5afd-4d64-89ac-f99b209bd995'
+RATELIMIT_TOKEN = 'e3a4f2b1c6d74e0a9f8b1c2d3e4f5a6b'
 
 
 def strtime(at=None):
@@ -666,6 +667,25 @@ class CommonAuthTokenMiddlewareTest(object):
         self.assertIsNone(self._get_cached_token(TIMEOUT_TOKEN))
         self.assert_valid_last_url(TIMEOUT_TOKEN)
 
+    def test_rate_limited_token_validation(self):
+        # When Keystone rate-limits token validation with a 429, the
+        # middleware must surface a 429 to the caller (not a 500) and must
+        # not cache the token as invalid.
+        self.set_middleware(conf={'http_request_max_retries': '0'})
+        resp = self.call_middleware(headers={'X-Auth-Token': RATELIMIT_TOKEN},
+                                    expected_status=429)
+        self.assertEqual('7', resp.headers.get('Retry-After'))
+        self.assertIsNone(self._get_cached_token(RATELIMIT_TOKEN))
+
+    def test_rate_limited_token_validation_delay_auth_decision(self):
+        # Even with delay_auth_decision enabled a rate-limit must still be
+        # returned as a 429 rather than being deferred downstream.
+        self.set_middleware(conf={'http_request_max_retries': '0',
+                                  'delay_auth_decision': 'True'})
+        self.call_middleware(headers={'X-Auth-Token': RATELIMIT_TOKEN},
+                             expected_status=429)
+        self.assertIsNone(self._get_cached_token(RATELIMIT_TOKEN))
+
     def test_nocatalog(self):
         conf = {
             'include_service_catalog': 'False'
@@ -995,6 +1015,13 @@ def request_timeout_response(request, context):
         "Request to https://host/token/path timed out")
 
 
+def ratelimit_response(request, context):
+    # Simulate Keystone rate-limiting token validation with an HTTP 429.
+    context.status_code = 429
+    context.headers['Retry-After'] = '7'
+    return 'Too many requests'
+
+
 class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
                                 CommonAuthTokenMiddlewareTest,
                                 testresources.ResourcedTestCase):
@@ -1054,6 +1081,8 @@ class v3AuthTokenMiddlewareTest(BaseAuthTokenMiddlewareTest,
             request_timeout_response(request, context)
         elif token_id == ENDPOINT_NOT_FOUND_TOKEN:
             raise ksa_exceptions.EndpointNotFound()
+        elif token_id == RATELIMIT_TOKEN:
+            return ratelimit_response(request, context)
 
         try:
             response = self.examples.JSON_TOKEN_RESPONSES[token_id]
