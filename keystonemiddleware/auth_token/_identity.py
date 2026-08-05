@@ -171,6 +171,17 @@ class IdentityServer(object):
             msg = _('Identity server rejected authorization necessary to '
                     'fetch token data')
             raise ksm_exceptions.ServiceError(msg)
+        except ksa_exceptions.TooManyRequests as e:
+            # The identity server rate-limited the validation request. Do not
+            # treat this as an unrecoverable service error (which would surface
+            # as a 500); instead propagate the rate-limit so it can be returned
+            # to the caller as an HTTP 429.
+            self._LOG.warning(
+                'Identity server rate-limited token validation: %s %s',
+                e.http_status, e.message)
+            raise ksm_exceptions.TooManyRequests(
+                _('Token validation rate-limited by identity server'),
+                retry_after=getattr(e, 'retry_after', 0))
         except ksa_exceptions.HttpError as e:
             self._LOG.error(
                 'Bad response code while validating token: %s %s',
